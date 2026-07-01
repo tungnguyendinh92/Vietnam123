@@ -12,13 +12,15 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { localWhiteboardTranslate, localExplainGrammar } from '../utils/localTranslator';
+import { AppLang } from '../utils/translations';
 
 interface WhiteboardModuleProps {
   tabs: WhiteboardTab[];
   onUpdateTabs: (updated: WhiteboardTab[]) => void;
+  appLang?: AppLang;
 }
 
-export default function WhiteboardModule({ tabs, onUpdateTabs }: WhiteboardModuleProps) {
+export default function WhiteboardModule({ tabs, onUpdateTabs, appLang }: WhiteboardModuleProps) {
   const [activeTabId, setActiveTabId] = useState<string>('');
   const [isPrinting, setIsPrinting] = useState(false);
 

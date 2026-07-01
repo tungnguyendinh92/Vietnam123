@@ -8,15 +8,17 @@ import { ChatMessage } from '../types';
 import { Send, Sparkles, Loader2, MessageSquare, Volume2, Globe, Bot, User, HelpCircle, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { localWhiteboardTranslate, localChatResponse } from '../utils/localTranslator';
+import { AppLang } from '../utils/translations';
 
 interface ChatModuleProps {
   messages: ChatMessage[];
   onAddMessage: (msg: ChatMessage) => void;
   onUpdateMessage: (id: string, updatedFields: Partial<ChatMessage>) => void;
   onClearHistory: () => void;
+  appLang?: AppLang;
 }
 
-export default function ChatModule({ messages, onAddMessage, onUpdateMessage, onClearHistory }: ChatModuleProps) {
+export default function ChatModule({ messages, onAddMessage, onUpdateMessage, onClearHistory, appLang }: ChatModuleProps) {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);

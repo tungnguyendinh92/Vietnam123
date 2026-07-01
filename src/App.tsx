@@ -13,6 +13,7 @@ import SyncModal from './components/SyncModal';
 
 import { VocabItem, GrammarPuzzle, WhiteboardTab, ChatMessage, WhiteboardLine } from './types';
 import { DEFAULT_VOCAB_ITEMS, DEFAULT_GRAMMAR_PUZZLES } from './presets';
+import { AppLang, TRANSLATIONS } from './utils/translations';
 import { 
   extractSpreadsheetId, 
   fetchWhiteboardFromSheet, 
@@ -31,6 +32,9 @@ export default function App() {
   // Navigation: 'vocab' | 'grammar' | 'whiteboard' | 'chat'
   const [activeTab, setActiveTab] = useState<'vocab' | 'grammar' | 'whiteboard' | 'chat'>('vocab');
 
+  // App Language: 'vi' | 'en' | 'cn'
+  const [appLang, setAppLang] = useState<AppLang>('vi');
+
   // Modal control
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
@@ -48,6 +52,12 @@ export default function App() {
 
   // Load initial data
   useEffect(() => {
+    // 0. Language
+    const cachedLang = localStorage.getItem('vietlearn_app_lang');
+    if (cachedLang === 'vi' || cachedLang === 'en' || cachedLang === 'cn') {
+      setAppLang(cachedLang);
+    }
+
     // 1. Vocabulary
     const cachedVocab = localStorage.getItem('vietlearn_vocab');
     if (cachedVocab) {
@@ -463,6 +473,13 @@ export default function App() {
     }
   };
 
+  const handleSetAppLang = (lang: AppLang) => {
+    setAppLang(lang);
+    localStorage.setItem('vietlearn_app_lang', lang);
+  };
+
+  const t = TRANSLATIONS[appLang];
+
   return (
     <div className="min-h-screen bg-sky-50 flex flex-col font-sans" id="app-root">
       {/* 1. Universal Top Header */}
@@ -475,6 +492,8 @@ export default function App() {
         syncLoading={syncLoading}
         syncMessage={syncMessage}
         onClearMessage={() => setSyncMessage(null)}
+        appLang={appLang}
+        onSetAppLang={handleSetAppLang}
       />
 
       {/* 2. Main Content Area */}
@@ -491,7 +510,7 @@ export default function App() {
             id="tab-vocab"
           >
             <BookOpen className={`w-5 h-5 ${activeTab === 'vocab' ? 'text-orange-500' : 'text-slate-400'}`} />
-            <span className="text-xs">1. Kho Từ Vựng</span>
+            <span className="text-xs">{t.tab_vocab}</span>
           </button>
 
           <button
@@ -504,7 +523,7 @@ export default function App() {
             id="tab-grammar"
           >
             <Sparkles className={`w-5 h-5 ${activeTab === 'grammar' ? 'text-orange-500' : 'text-slate-400'}`} />
-            <span className="text-xs">2. Ghép từ Ngữ pháp</span>
+            <span className="text-xs">{t.tab_grammar}</span>
           </button>
 
           <button
@@ -517,7 +536,7 @@ export default function App() {
             id="tab-whiteboard"
           >
             <FileText className={`w-5 h-5 ${activeTab === 'whiteboard' ? 'text-orange-500' : 'text-slate-400'}`} />
-            <span className="text-xs">3. Bảng trắng dịch</span>
+            <span className="text-xs">{t.tab_whiteboard}</span>
           </button>
 
           <button
@@ -530,7 +549,7 @@ export default function App() {
             id="tab-chat"
           >
             <MessageSquare className={`w-5 h-5 ${activeTab === 'chat' ? 'text-orange-500' : 'text-slate-400'}`} />
-            <span className="text-xs">4. Chat cùng AI</span>
+            <span className="text-xs">{t.tab_chat}</span>
           </button>
         </div>
 
@@ -561,12 +580,14 @@ export default function App() {
                     setScriptUrl(url);
                     localStorage.setItem('vietlearn_script_url', url);
                   }}
+                  appLang={appLang}
                 />
               )}
 
               {activeTab === 'grammar' && (
                 <GrammarModule 
                   puzzles={puzzles}
+                  appLang={appLang}
                 />
               )}
 
@@ -574,6 +595,7 @@ export default function App() {
                 <WhiteboardModule 
                   tabs={whiteboardTabs} 
                   onUpdateTabs={handleUpdateWhiteboard}
+                  appLang={appLang}
                 />
               )}
 
@@ -583,6 +605,7 @@ export default function App() {
                   onAddMessage={handleAddChatMessage}
                   onUpdateMessage={handleUpdateChatMessage}
                   onClearHistory={handleClearChatHistory}
+                  appLang={appLang}
                 />
               )}
             </motion.div>
@@ -600,13 +623,14 @@ export default function App() {
         currentGrammarSheetName={grammarSheetName}
         currentWhiteboardSheetName={whiteboardSheetName}
         scriptUrl={scriptUrl}
+        appLang={appLang}
       />
 
       {/* 4. Footer */}
       <footer className="bg-white border-t border-slate-100 py-6 select-none print:hidden">
         <div className="max-w-7xl mx-auto px-4 text-center text-slate-400 text-[11px] font-medium space-y-1">
-          <p>© 2026 Vietnamese Learning Studio. Thiết kế riêng cho mô hình học tập song ngữ cao cấp.</p>
-          <p>Tận dụng sức mạnh của Google Gemini-3.5-flash & Web Speech API để phát triển phản xạ tự nhiên.</p>
+          <p>© 2026 Vietnamese Learning Studio. {t.footer_text}</p>
+          <p>{t.footer_tech}</p>
         </div>
       </footer>
     </div>

@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { BookOpen, RefreshCw, FileSpreadsheet, Globe, Download, Upload, Loader2, Check, AlertCircle, X } from 'lucide-react';
+import { AppLang, TRANSLATIONS } from '../utils/translations';
 
 interface HeaderProps {
   sheetSynced: boolean;
@@ -15,6 +16,8 @@ interface HeaderProps {
   syncLoading: 'pull' | 'push' | null;
   syncMessage: { type: 'success' | 'error'; text: string } | null;
   onClearMessage: () => void;
+  appLang: AppLang;
+  onSetAppLang: (lang: AppLang) => void;
 }
 
 export default function Header({ 
@@ -25,8 +28,12 @@ export default function Header({
   onPush,
   syncLoading,
   syncMessage,
-  onClearMessage
+  onClearMessage,
+  appLang,
+  onSetAppLang
 }: HeaderProps) {
+  const t = TRANSLATIONS[appLang];
+
   return (
     <header className="bg-white border-b-4 border-yellow-400 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -41,8 +48,8 @@ export default function Header({
                 Bilingual v2.5
               </span>
             </h1>
-            <p className="text-[11px] font-bold text-slate-500 hidden sm:block">
-              Phát triển ngôn ngữ cho Giáo viên & Học sinh Việt - Anh
+            <p className="text-[11px] font-bold text-slate-500 hidden md:block">
+              {t.app_desc}
             </p>
           </div>
         </div>
@@ -56,8 +63,39 @@ export default function Header({
                 : 'bg-yellow-50 text-amber-700 border-yellow-300'
             }`}>
               <div className={`w-2 h-2 rounded-full ${syncSource === 'sheet' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-              <span>{syncSource === 'sheet' ? 'Google Sheet Connected' : 'Preset Lesson Data'}</span>
+              <span>{syncSource === 'sheet' ? t.sheet_connected : t.preset_data}</span>
             </div>
+          </div>
+
+          {/* Language Selector (VI/EN/CN) */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-inner" id="lang-selector">
+            <button
+              onClick={() => onSetAppLang('vi')}
+              className={`px-2 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
+                appLang === 'vi' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Tiếng Việt"
+            >
+              VI
+            </button>
+            <button
+              onClick={() => onSetAppLang('en')}
+              className={`px-2 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
+                appLang === 'en' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="English"
+            >
+              EN
+            </button>
+            <button
+              onClick={() => onSetAppLang('cn')}
+              className={`px-2 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
+                appLang === 'cn' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="中文 (简体)"
+            >
+              CN
+            </button>
           </div>
 
           {/* Pull Button */}
@@ -65,7 +103,7 @@ export default function Header({
             onClick={onPull}
             disabled={syncLoading !== null}
             className="flex items-center space-x-1 sm:space-x-1.5 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer active:scale-95 disabled:cursor-not-allowed"
-            title="Kéo toàn bộ dữ liệu từ Google Sheet xuống"
+            title={t.pull_title}
             id="pull-btn"
           >
             {syncLoading === 'pull' ? (
@@ -73,7 +111,7 @@ export default function Header({
             ) : (
               <Download className="w-3.5 h-3.5" />
             )}
-            <span className="hidden sm:inline">Kéo Data Xuống</span>
+            <span className="hidden sm:inline">{t.pull_data}</span>
           </button>
 
           {/* Push Button */}
@@ -81,7 +119,7 @@ export default function Header({
             onClick={onPush}
             disabled={syncLoading !== null}
             className="flex items-center space-x-1 sm:space-x-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer active:scale-95 disabled:cursor-not-allowed"
-            title="Đẩy toàn bộ dữ liệu hiện tại lên Google Sheet"
+            title={t.push_title}
             id="push-btn"
           >
             {syncLoading === 'push' ? (
@@ -89,18 +127,18 @@ export default function Header({
             ) : (
               <Upload className="w-3.5 h-3.5" />
             )}
-            <span className="hidden sm:inline">Đẩy Data Lên</span>
+            <span className="hidden sm:inline">{t.push_data}</span>
           </button>
 
           {/* Sync Settings Button */}
           <button
             onClick={onOpenSyncModal}
             className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 hover:bg-slate-800 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-md transition-all duration-200 cursor-pointer active:scale-95"
-            title="Cài đặt đồng bộ trang tính"
+            title={t.settings_title}
             id="sync-btn"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Cài đặt Sheet</span>
+            <span>{t.sheet_settings}</span>
           </button>
         </div>
       </div>

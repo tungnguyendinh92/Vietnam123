@@ -10,6 +10,7 @@ import {
   Trophy, Flame, Volume2, Award, ArrowRight, Lightbulb 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { AppLang } from '../utils/translations';
 
 const LOCAL_WORD_DICT: Record<string, string> = {
   'tôi': 'I',
@@ -111,9 +112,10 @@ function tokenizeVietnamese(sentence: string): string[] {
 
 interface GrammarModuleProps {
   puzzles: GrammarPuzzle[];
+  appLang?: AppLang;
 }
 
-export default function GrammarModule({ puzzles }: GrammarModuleProps) {
+export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) {
   // Level / Lesson selection state
   const [availableLessons, setAvailableLessons] = useState<string[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<string>('');

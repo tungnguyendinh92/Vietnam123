@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { X, FileSpreadsheet, ExternalLink, HelpCircle, Check, Loader2, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import { extractSpreadsheetId, fetchVocabFromSheet, fetchGrammarFromSheet, fetchWhiteboardFromSheet, parseWordsString, SAMPLE_SHEET_URL } from '../utils/sheetParser';
 import { VocabItem, GrammarPuzzle, WhiteboardTab, WhiteboardLine } from '../types';
+import { AppLang } from '../utils/translations';
 
 interface SyncModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface SyncModalProps {
   currentGrammarSheetName?: string;
   currentWhiteboardSheetName?: string;
   scriptUrl?: string;
+  appLang?: AppLang;
 }
 
 export default function SyncModal({ 
@@ -35,7 +37,8 @@ export default function SyncModal({
   currentVocabSheetName, 
   currentGrammarSheetName, 
   currentWhiteboardSheetName,
-  scriptUrl 
+  scriptUrl,
+  appLang
 }: SyncModalProps) {
   const [sheetUrl, setSheetUrl] = useState(currentSheetUrl || SAMPLE_SHEET_URL);
   const [whiteboardSheetName, setWhiteboardSheetName] = useState(currentWhiteboardSheetName || '0'); // Whiteboard: sheet 0
@@ -47,6 +50,67 @@ export default function SyncModal({
   const [success, setSuccess] = useState(false);
 
   if (!isOpen) return null;
+
+  const activeLang = appLang || 'vi';
+  const localT = {
+    vi: {
+      sync_title: "Đồng bộ đám mây Google Sheets",
+      subtitle: "Học liệu song ngữ cá nhân",
+      how_to: "Cách thiết lập trang tính:",
+      step1: "Mở Google Sheets của bạn.",
+      step2: "Nhấn Chia sẻ (Share) ở góc phải Google Sheets -> Đổi thành 'Bất kỳ ai có liên kết đều có thể xem' (Anyone with link can view). Sao chép link trình duyệt và dán vào ô dưới đây.",
+      sample: "Nhấp vào đây để dùng thử trang tính mẫu có sẵn của chúng tôi",
+      label_url: "Liên kết Google Sheet (Spreadsheet URL) *",
+      label_wb: "Số thứ tự / GID / Tên Trang tính 1 (Whiteboard)",
+      wb_desc: "Mặc định: 0 (Bảng viết/Giáo trình 4 dòng).",
+      label_vocab: "Trang tính 2 (Từ vựng)",
+      vocab_desc: "Mặc định: 1 (Kho từ vựng).",
+      label_grammar: "Trang tính 3 (Ghép câu)",
+      grammar_desc: "Mặc định: 2 (Ngữ pháp/Ghép câu).",
+      success_msg: "Đồng bộ hóa thành công! Dữ liệu mới đã sẵn sàng.",
+      cancel: "Hủy bỏ",
+      btn_sync: "Cập nhật Đồng bộ",
+      loading: "Đang tải và phân tích...",
+    },
+    en: {
+      sync_title: "Google Sheets Cloud Sync",
+      subtitle: "Personalized Bilingual Lessons",
+      how_to: "How to configure spreadsheet:",
+      step1: "Open your Google Sheets document.",
+      step2: "Click 'Share' on the top-right -> Change permission to 'Anyone with the link can view'. Copy the browser URL and paste it below.",
+      sample: "Click here to try out our pre-configured sample spreadsheet",
+      label_url: "Google Sheet Connection (Spreadsheet URL) *",
+      label_wb: "Index / GID / Tab Name 1 (Whiteboard)",
+      wb_desc: "Default: 0 (Interactive Board / 4-line conversations).",
+      label_vocab: "Tab 2 Name (Vocabulary)",
+      vocab_desc: "Default: 1 (Vocabulary repository).",
+      label_grammar: "Tab 3 Name (Sentence Puzzles)",
+      grammar_desc: "Default: 2 (Grammar / Sentence Builder).",
+      success_msg: "Sync completed successfully! Fresh data is ready.",
+      cancel: "Cancel",
+      btn_sync: "Update & Synchronize",
+      loading: "Fetching and analyzing...",
+    },
+    cn: {
+      sync_title: "谷歌表格云端同步",
+      subtitle: "个性化双语教学课件",
+      how_to: "如何配置谷歌表格:",
+      step1: "打开您的谷歌电子表格。",
+      step2: "点击右上角的 '分享' (Share) -> 将权限更改为 '任何拥有链接的人都可以查看' (Anyone with link can view)。复制浏览器地址栏的链接并粘贴到下方。",
+      sample: "点击这里试用我们预先配置的示范表格",
+      label_url: "谷歌表格链接 (Spreadsheet URL) *",
+      label_wb: "表格 1 排序 / GID / 名称 (智能白板)",
+      wb_desc: "默认值: 0 (互动白板 / 4行对话教案)。",
+      label_vocab: "表格 2 名称 (词汇库)",
+      vocab_desc: "默认值: 1 (词汇管理)。",
+      label_grammar: "表格 3 名称 (语法拼图)",
+      grammar_desc: "默认值: 2 (语法 / 拼句)。",
+      success_msg: "同步已成功完成！新教学数据已准备就绪。",
+      cancel: "取消",
+      btn_sync: "更新并同步",
+      loading: "正在下载并分析数据...",
+    }
+  }[activeLang];
 
   const handleUseSample = () => {
     setSheetUrl(SAMPLE_SHEET_URL);
@@ -62,7 +126,11 @@ export default function SyncModal({
 
     const id = extractSpreadsheetId(sheetUrl);
     if (!id) {
-      setError("Đường dẫn Google Sheet không hợp lệ. Vui lòng kiểm tra lại cấu trúc URL.");
+      setError(activeLang === 'vi' 
+        ? "Đường dẫn Google Sheet không hợp lệ. Vui lòng kiểm tra lại cấu trúc URL." 
+        : activeLang === 'en'
+        ? "Invalid Google Sheet URL. Please verify the URL layout."
+        : "谷歌表格链接格式不正确。请确认表格链接。");
       return;
     }
 
@@ -213,7 +281,9 @@ export default function SyncModal({
 
       // Make sure we actually retrieved some items so we don't wipe data accidentally
       if (whiteboardItems.length === 0 && vocabItems.length === 0 && grammarItems.length === 0) {
-        throw new Error("Không lấy được dữ liệu nào từ Google Sheet. Vui lòng kiểm tra lại cấu hình và dữ liệu trong Sheet.");
+        throw new Error(activeLang === 'vi' 
+          ? "Không lấy được dữ liệu nào từ Google Sheet. Vui lòng kiểm tra lại cấu hình và dữ liệu trong Sheet." 
+          : "No data rows retrieved. Please check sheet configuration.");
       }
 
       onSyncComplete(vocabItems, grammarItems, whiteboardItems, sheetUrl, vocabSheetName, grammarSheetName, whiteboardSheetName);
@@ -242,8 +312,8 @@ export default function SyncModal({
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-800 tracking-tight">Đồng bộ đám mây Google Sheets</h3>
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Học liệu song ngữ cá nhân</p>
+              <h3 className="text-sm font-black text-slate-800 tracking-tight">{localT.sync_title}</h3>
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{localT.subtitle}</p>
             </div>
           </div>
           <button 
@@ -261,13 +331,11 @@ export default function SyncModal({
           <div className="bg-slate-50 rounded-2xl p-4 text-xs text-slate-600 leading-relaxed border border-slate-100">
             <p className="font-bold text-slate-800 mb-1.5 flex items-center gap-1">
               <HelpCircle className="w-4 h-4 text-orange-500 shrink-0" />
-              Cách thiết lập trang tính:
+              {localT.how_to}
             </p>
             <ol className="list-decimal list-inside space-y-1 text-slate-500 pl-1">
-              <li>Mở Google Sheets của bạn.</li>
-              <li>
-                Nhấn <strong>Chia sẻ (Share)</strong> ở góc phải Google Sheets {"->"} Đổi thành <strong>'Bất kỳ ai có liên kết đều có thể xem' (Anyone with link can view)</strong>. Sao chép link trình duyệt và dán vào ô dưới đây.
-              </li>
+              <li>{localT.step1}</li>
+              <li>{localT.step2}</li>
             </ol>
             <div className="pt-2">
               <button
@@ -276,7 +344,7 @@ export default function SyncModal({
                 className="text-[11px] font-black text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Nhấp vào đây để dùng thử trang tính mẫu có sẵn của chúng tôi</span>
+                <span>{localT.sample}</span>
               </button>
             </div>
           </div>
@@ -284,7 +352,7 @@ export default function SyncModal({
           {/* Form Fields */}
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Liên kết Google Sheet (Spreadsheet URL) *</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{localT.label_url}</label>
               <input
                 type="url"
                 required
@@ -298,7 +366,7 @@ export default function SyncModal({
             <div className="grid grid-cols-1 gap-4">
               {/* Whiteboard Sheet Name/Index (Sheet 0) */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Số thứ tự / GID / Tên Trang tính 1 (Whiteboard)</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{localT.label_wb}</label>
                 <input
                   type="text"
                   placeholder="Ví dụ: 0 hoặc Sheet1"
@@ -306,13 +374,13 @@ export default function SyncModal({
                   onChange={(e) => setWhiteboardSheetName(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Mặc định: <strong>0</strong> (Bảng viết/Giáo trình 4 dòng).</p>
+                <p className="text-[10px] text-slate-400 mt-1">{localT.wb_desc}</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Vocab Sheet Name/Index (Sheet 1) */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Trang tính 2 (Từ vựng)</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{localT.label_vocab}</label>
                   <input
                     type="text"
                     placeholder="Ví dụ: 1 hoặc Sheet2"
@@ -320,12 +388,12 @@ export default function SyncModal({
                     onChange={(e) => setVocabSheetName(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">Mặc định: <strong>1</strong> (Kho từ vựng).</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{localT.vocab_desc}</p>
                 </div>
 
                 {/* Grammar Sheet Name/Index (Sheet 2) */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Trang tính 3 (Ghép câu)</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{localT.label_grammar}</label>
                   <input
                     type="text"
                     placeholder="Ví dụ: 2 hoặc Sheet3"
@@ -333,7 +401,7 @@ export default function SyncModal({
                     onChange={(e) => setGrammarSheetName(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">Mặc định: <strong>2</strong> (Ngữ pháp/Ghép câu).</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{localT.grammar_desc}</p>
                 </div>
               </div>
             </div>
@@ -350,7 +418,7 @@ export default function SyncModal({
           {success && (
             <div className="bg-green-50 border border-green-100 rounded-2xl p-4 flex items-center space-x-2 text-green-800 text-xs font-bold">
               <Check className="w-5 h-5 text-green-500 shrink-0" />
-              <span>Đồng bộ hóa thành công! Dữ liệu mới đã sẵn sàng.</span>
+              <span>{localT.success_msg}</span>
             </div>
           )}
 
@@ -361,7 +429,7 @@ export default function SyncModal({
               onClick={onClose}
               className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 cursor-pointer"
             >
-              Hủy bỏ
+              {localT.cancel}
             </button>
             <button
               type="submit"
@@ -371,12 +439,12 @@ export default function SyncModal({
               {syncing ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Đang tải và phân tích...</span>
+                  <span>{localT.loading}</span>
                 </>
               ) : (
                 <>
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Cập nhật Đồng bộ</span>
+                  <span>{localT.btn_sync}</span>
                 </>
               )}
             </button>

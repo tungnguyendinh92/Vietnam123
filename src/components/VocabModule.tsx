@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { extractSpreadsheetId, serializeWordsToString } from '../utils/sheetParser';
+import { AppLang } from '../utils/translations';
 
 interface VocabModuleProps {
   vocabItems: VocabItem[];
@@ -25,6 +26,7 @@ interface VocabModuleProps {
   puzzles: GrammarPuzzle[];
   scriptUrl: string;
   onUpdateScriptUrl: (url: string) => void;
+  appLang?: AppLang;
 }
 
 export default function VocabModule({ 
@@ -38,7 +40,8 @@ export default function VocabModule({
   whiteboardTabs,
   puzzles,
   scriptUrl,
-  onUpdateScriptUrl
+  onUpdateScriptUrl,
+  appLang
 }: VocabModuleProps) {
   // Views: 'flashcard' or 'list'
   const [viewMode, setViewMode] = useState<'flashcard' | 'list'>('flashcard');

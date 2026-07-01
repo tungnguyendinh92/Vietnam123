@@ -501,39 +501,54 @@ async function fetchSheetGidsAndNames(spreadsheetId: string): Promise<{ name: st
     
     const sheets: { name: string; gid: string }[] = [];
     
-    // Look for {"sheetId":0,"title":"Bảng viết", ...}
-    const matches = html.matchAll(/\{\"sheetId\":\s*(\d+),\s*\"title\":\s*\"([^\"]+)\"/g);
-    for (const match of matches) {
-      sheets.push({
-        gid: match[1],
-        name: match[2]
-      });
-    }
-    
-    if (sheets.length === 0) {
-      const backupMatches = html.matchAll(/\"id\":\s*(\d+),\s*\"name\":\s*\"([^\"]+)\"/g);
-      for (const match of backupMatches) {
-        if (!sheets.some(s => s.gid === match[1])) {
-          sheets.push({
-            gid: match[1],
-            name: match[2]
-          });
-        }
+    // 1. Look for <a href="#gid=12345678">Tab Name</a> or similar HTML anchors in menu bar
+    const anchorMatches = html.matchAll(/<a\s+[^>]*href=["'][^"']*gid=(\d+)[^"']*["'][^>]*>([^<]+)<\/a>/gi);
+    for (const match of anchorMatches) {
+      const gid = match[1];
+      const name = match[2]
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+      if (name && !sheets.some(s => s.gid === gid)) {
+        sheets.push({ gid, name });
       }
     }
 
-    if (sheets.length === 0) {
-      const gidMatches = html.matchAll(/gid=(\d+)/g);
-      let idx = 0;
-      for (const match of gidMatches) {
-        const gid = match[1];
-        if (!sheets.some(s => s.gid === gid)) {
-          sheets.push({
-            gid,
-            name: `Trang ${idx}`
-          });
-          idx++;
-        }
+    // 2. Look for {"sheetId":0,"title":"Bảng viết", ...}
+    const matches = html.matchAll(/\{\"sheetId\":\s*(\d+),\s*\"title\":\s*\"([^\"]+)\"/g);
+    for (const match of matches) {
+      const gid = match[1];
+      const name = match[2];
+      if (name && !sheets.some(s => s.gid === gid)) {
+        sheets.push({ gid, name });
+      }
+    }
+    
+    // 3. Backup matches using standard structure
+    const backupMatches = html.matchAll(/\"id\":\s*(\d+),\s*\"name\":\s*\"([^\"]+)\"/g);
+    for (const match of backupMatches) {
+      if (!sheets.some(s => s.gid === match[1])) {
+        sheets.push({
+          gid: match[1],
+          name: match[2]
+        });
+      }
+    }
+
+    // 4. Ultimate fallback: find all gids
+    const gidMatches = html.matchAll(/gid=(\d+)/g);
+    let idx = 0;
+    for (const match of gidMatches) {
+      const gid = match[1];
+      if (!sheets.some(s => s.gid === gid)) {
+        sheets.push({
+          gid,
+          name: `Trang ${idx}`
+        });
+        idx++;
       }
     }
 
@@ -584,51 +599,56 @@ app.post("/api/fetch-from-sheet", async (req, res) => {
 
   // 2. Direct public CSV fetch fallback (no Apps Script or Apps Script failed)
   try {
-    console.log(`Falling back to direct public CSV fetch for sheet: ${sheetName}`);
+    console.log(`Falling back to direct public CSV fetch for sheet identifier: ${sheetName}`);
     
     // Fetch GIDs and sheet names from the spreadsheet HTML
     const sheets = await fetchSheetGidsAndNames(spreadsheetId);
-    let resolvedGid = "0";
+    let resolvedGid: string | null = null;
+    let resolvedName: string | null = null;
 
-    if (/^\d+$/.test(sheetName)) {
-      const index = parseInt(sheetName, 10);
-      if (sheets.length > 0) {
-        if (index >= 0 && index < sheets.length) {
-          resolvedGid = sheets[index].gid;
-          console.log(`Resolved index ${index} to GID ${resolvedGid} (${sheets[index].name})`);
-        } else {
-          const matchedByGid = sheets.find(s => s.gid === sheetName);
-          if (matchedByGid) {
-            resolvedGid = matchedByGid.gid;
-            console.log(`Resolved literal sheet ID ${sheetName} to GID ${resolvedGid}`);
-          } else {
-            resolvedGid = sheetName;
-          }
+    console.log(`Attempting to resolve identifier "${sheetName}" against ${sheets.length} discovered sheets...`);
+
+    if (sheets.length > 0) {
+      const normalizedQuery = String(sheetName).trim().toLowerCase();
+
+      // A. Try to match as a literal GID or Name in the sheets list (case-insensitive)
+      const matchedByNameOrGid = sheets.find(
+        s => s.name.toLowerCase().trim() === normalizedQuery || s.gid === normalizedQuery
+      );
+
+      if (matchedByNameOrGid) {
+        resolvedGid = matchedByNameOrGid.gid;
+        resolvedName = matchedByNameOrGid.name;
+        console.log(`Matched sheet by name/GID: "${resolvedName}" (GID: ${resolvedGid})`);
+      } 
+      // B. If sheetName is a simple index number (e.g., "0", "1", "2"), resolve it by index
+      else if (/^\d+$/.test(normalizedQuery)) {
+        const idx = parseInt(normalizedQuery, 10);
+        if (idx >= 0 && idx < sheets.length) {
+          resolvedGid = sheets[idx].gid;
+          resolvedName = sheets[idx].name;
+          console.log(`Resolved numerical identifier "${sheetName}" to sheet index ${idx}: "${resolvedName}" (GID: ${resolvedGid})`);
         }
-      } else {
-        resolvedGid = sheetName;
-      }
-    } else {
-      const matchedByName = sheets.find(s => s.name.toLowerCase().trim() === sheetName.toLowerCase().trim());
-      if (matchedByName) {
-        resolvedGid = matchedByName.gid;
-        console.log(`Resolved sheet name "${sheetName}" to GID ${resolvedGid}`);
-      } else {
-        // Fallback to sheet parameter
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
-        const csvRes = await fetch(csvUrl);
-        if (csvRes.ok) {
-          const csvText = await csvRes.text();
-          const rows = parseServerCSV(csvText);
-          return res.json({ status: "success", data: rows });
-        }
-        throw new Error(`Không tìm thấy trang tính mang tên "${sheetName}" trong tài liệu.`);
       }
     }
 
-    // Fetch the CSV directly
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${resolvedGid}`;
-    console.log(`Fetching public CSV from URL: ${csvUrl}`);
+    // C. If still not resolved but the query is digit-only, assume it's a literal long GID
+    if (!resolvedGid) {
+      if (/^\d+$/.test(String(sheetName))) {
+        resolvedGid = String(sheetName);
+        console.log(`Fallback: using "${sheetName}" as literal GID`);
+      }
+    }
+
+    let csvUrl = "";
+    if (resolvedGid) {
+      csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${resolvedGid}`;
+    } else {
+      // D. Fallback: query via public Google Visualization query endpoint using sheet name
+      csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    }
+
+    console.log(`Fetching CSV from URL: ${csvUrl}`);
     const csvRes = await fetch(csvUrl);
     if (!csvRes.ok) {
       throw new Error(`Google Sheets export returned code ${csvRes.status}. Hãy đảm bảo Trang tính đã được chia sẻ công khai ở chế độ "Bất kỳ ai có liên kết đều có thể xem" (Anyone with link can view).`);

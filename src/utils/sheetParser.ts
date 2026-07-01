@@ -93,9 +93,15 @@ export function serializeWordsToString(words: { vi: string; en: string }[]): str
  * 5. Ngữ pháp (Grammar/Notes)
  */
 export async function fetchWhiteboardFromSheet(spreadsheetId: string, sheetNameOrId: string = '0'): Promise<WhiteboardTab[]> {
-  const isGid = /^\d+$/.test(sheetNameOrId);
-  const paramName = isGid ? 'gid' : 'sheet';
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&${paramName}=${encodeURIComponent(sheetNameOrId)}`;
+  const isGid = /^\d{8,25}$/.test(sheetNameOrId);
+  let url = "";
+  if (!sheetNameOrId || sheetNameOrId.trim() === "") {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+  } else if (isGid) {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${sheetNameOrId}`;
+  } else {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetNameOrId)}`;
+  }
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -152,13 +158,19 @@ export async function fetchWhiteboardFromSheet(spreadsheetId: string, sheetNameO
  * 5. Dịch ví dụ (Example translation - optional)
  */
 export async function fetchVocabFromSheet(spreadsheetId: string, sheetNameOrId: string = '0'): Promise<VocabItem[]> {
-  const isGid = /^\d+$/.test(sheetNameOrId);
-  const paramName = isGid ? 'gid' : 'sheet';
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&${paramName}=${encodeURIComponent(sheetNameOrId)}`;
+  const isGid = /^\d{8,25}$/.test(sheetNameOrId);
+  let url = "";
+  if (!sheetNameOrId || sheetNameOrId.trim() === "") {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+  } else if (isGid) {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${sheetNameOrId}`;
+  } else {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetNameOrId)}`;
+  }
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Không thể kết nối với Google Sheet. Mã lỗi: ${response.status}`);
+    throw new Error(`Không thể kết nối với Google Sheet (Trang ${sheetNameOrId}). Mã lỗi: ${response.status}`);
   }
 
   const csvText = await response.text();
@@ -196,9 +208,15 @@ export async function fetchVocabFromSheet(spreadsheetId: string, sheetNameOrId: 
  * 3. Bài / Trình độ (Lesson / Level)
  */
 export async function fetchGrammarFromSheet(spreadsheetId: string, sheetNameOrId: string = '0'): Promise<GrammarPuzzle[]> {
-  const isGid = /^\d+$/.test(sheetNameOrId);
-  const paramName = isGid ? 'gid' : 'sheet';
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&${paramName}=${encodeURIComponent(sheetNameOrId)}`;
+  const isGid = /^\d{8,25}$/.test(sheetNameOrId);
+  let url = "";
+  if (!sheetNameOrId || sheetNameOrId.trim() === "") {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+  } else if (isGid) {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${sheetNameOrId}`;
+  } else {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetNameOrId)}`;
+  }
 
   const response = await fetch(url);
   if (!response.ok) {
