@@ -93,14 +93,16 @@ export function serializeWordsToString(words: { vi: string; en: string }[]): str
  * 5. Ngữ pháp (Grammar/Notes)
  */
 export async function fetchWhiteboardFromSheet(spreadsheetId: string, sheetNameOrId: string = '0'): Promise<WhiteboardTab[]> {
-  const isGid = /^\d{8,25}$/.test(sheetNameOrId);
+  const isGid = /^\d{5,25}$/.test(String(sheetNameOrId).trim());
   let url = "";
-  if (!sheetNameOrId || sheetNameOrId.trim() === "") {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+  const trimmed = String(sheetNameOrId).trim();
+  if (!trimmed || trimmed === "0") {
+    // Default to the first sheet in the spreadsheet without gid to avoid 404/400 if gid=0 was deleted
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
   } else if (isGid) {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${sheetNameOrId}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${trimmed}`;
   } else {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetNameOrId)}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(trimmed)}`;
   }
 
   const response = await fetch(url);
@@ -157,15 +159,16 @@ export async function fetchWhiteboardFromSheet(spreadsheetId: string, sheetNameO
  * 4. Ví dụ (Example sentence - optional)
  * 5. Dịch ví dụ (Example translation - optional)
  */
-export async function fetchVocabFromSheet(spreadsheetId: string, sheetNameOrId: string = '0'): Promise<VocabItem[]> {
-  const isGid = /^\d{8,25}$/.test(sheetNameOrId);
+export async function fetchVocabFromSheet(spreadsheetId: string, sheetNameOrId: string = '1'): Promise<VocabItem[]> {
+  const isGid = /^\d{5,25}$/.test(String(sheetNameOrId).trim());
   let url = "";
-  if (!sheetNameOrId || sheetNameOrId.trim() === "") {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+  const trimmed = String(sheetNameOrId).trim();
+  if (!trimmed || trimmed === "0") {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
   } else if (isGid) {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${sheetNameOrId}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${trimmed}`;
   } else {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetNameOrId)}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(trimmed)}`;
   }
 
   const response = await fetch(url);
@@ -207,15 +210,16 @@ export async function fetchVocabFromSheet(spreadsheetId: string, sheetNameOrId: 
  * 2. Nghĩa Tiếng Anh (English Translation)
  * 3. Bài / Trình độ (Lesson / Level)
  */
-export async function fetchGrammarFromSheet(spreadsheetId: string, sheetNameOrId: string = '0'): Promise<GrammarPuzzle[]> {
-  const isGid = /^\d{8,25}$/.test(sheetNameOrId);
+export async function fetchGrammarFromSheet(spreadsheetId: string, sheetNameOrId: string = '2'): Promise<GrammarPuzzle[]> {
+  const isGid = /^\d{5,25}$/.test(String(sheetNameOrId).trim());
   let url = "";
-  if (!sheetNameOrId || sheetNameOrId.trim() === "") {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+  const trimmed = String(sheetNameOrId).trim();
+  if (!trimmed || trimmed === "0") {
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
   } else if (isGid) {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${sheetNameOrId}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${trimmed}`;
   } else {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetNameOrId)}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(trimmed)}`;
   }
 
   const response = await fetch(url);

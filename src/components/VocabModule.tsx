@@ -268,53 +268,69 @@ function doGet(e) {
         item.lesson
       ]);
 
+      const pushDataToSheet = async (sheetName: string, data: any[][]) => {
+        let useDirectPush = false;
+        try {
+          const res = await fetch('/api/push-to-sheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              scriptUrl,
+              spreadsheetId,
+              sheetName,
+              data
+            })
+          });
+          if (res.status === 404) {
+            useDirectPush = true;
+          } else {
+            if (!res.ok) {
+              const errorData = await res.json().catch(() => ({}));
+              throw new Error(errorData.error || `Yêu cầu thất bại (${res.status}).`);
+            }
+            return await res.json();
+          }
+        } catch (err) {
+          console.warn("Express server push failed or not found, falling back to direct browser post:", err);
+          useDirectPush = true;
+        }
+
+        if (useDirectPush) {
+          const res = await fetch(scriptUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify({
+              spreadsheetId,
+              sheetName,
+              data
+            })
+          });
+          if (!res.ok) {
+            throw new Error(`Google Apps Script trả về lỗi: ${res.status}`);
+          }
+          const text = await res.text();
+          try {
+            const json = JSON.parse(text);
+            if (json.status === 'error') {
+              throw new Error(json.message || "Lỗi lưu dữ liệu trong Apps Script.");
+            }
+            return json;
+          } catch {
+            return { status: "success", raw: text };
+          }
+        }
+      };
+
       // Step 1: Push Whiteboard
-      const resWb = await fetch('/api/push-to-sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scriptUrl,
-          spreadsheetId,
-          sheetName: whiteboardSheetName || '0',
-          data: wbRows
-        })
-      });
-      if (!resWb.ok) {
-        const errorData = await resWb.json();
-        throw new Error(`Đẩy dữ liệu Whiteboard thất bại: ${errorData.error || 'Yêu cầu thất bại.'}`);
-      }
+      await pushDataToSheet(whiteboardSheetName || '0', wbRows);
 
       // Step 2: Push Vocabulary
-      const resVocab = await fetch('/api/push-to-sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scriptUrl,
-          spreadsheetId,
-          sheetName: vocabSheetName || '1',
-          data: vocabRows
-        })
-      });
-      if (!resVocab.ok) {
-        const errorData = await resVocab.json();
-        throw new Error(`Đẩy dữ liệu Từ vựng thất bại: ${errorData.error || 'Yêu cầu thất bại.'}`);
-      }
+      await pushDataToSheet(vocabSheetName || '1', vocabRows);
 
       // Step 3: Push Sentence
-      const resGrammar = await fetch('/api/push-to-sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scriptUrl,
-          spreadsheetId,
-          sheetName: grammarSheetName || '2',
-          data: grammarRows
-        })
-      });
-      if (!resGrammar.ok) {
-        const errorData = await resGrammar.json();
-        throw new Error(`Đẩy dữ liệu Ghép câu thất bại: ${errorData.error || 'Yêu cầu thất bại.'}`);
-      }
+      await pushDataToSheet(grammarSheetName || '2', grammarRows);
 
       setPushSuccess(true);
       setTimeout(() => setPushSuccess(false), 3000);
