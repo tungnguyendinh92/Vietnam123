@@ -7,7 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { GrammarPuzzle } from '../types';
 import { 
   Sparkles, CheckCircle2, AlertTriangle, RefreshCw, ChevronRight, HelpCircle, 
-  Trophy, Flame, Volume2, Award, ArrowRight, Lightbulb 
+  Trophy, Flame, Volume2, Award, ArrowRight, Lightbulb,
+  Edit2, Trash2, Plus, Search, X, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLang } from '../utils/translations';
@@ -112,10 +113,11 @@ function tokenizeVietnamese(sentence: string): string[] {
 
 interface GrammarModuleProps {
   puzzles: GrammarPuzzle[];
+  onUpdatePuzzles?: (updated: GrammarPuzzle[]) => void;
   appLang?: AppLang;
 }
 
-export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) {
+export default function GrammarModule({ puzzles, onUpdatePuzzles, appLang }: GrammarModuleProps) {
   // Level / Lesson selection state
   const [availableLessons, setAvailableLessons] = useState<string[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<string>('');
@@ -135,6 +137,101 @@ export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) 
   // AI Explaining state
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiExplanation, setAiExplanation] = useState<string>('');
+
+  // View mode
+  const [viewMode, setViewMode] = useState<'practice' | 'manage'>('practice');
+
+  // Search & Filter for management view
+  const [manageSearchQuery, setManageSearchQuery] = useState('');
+  const [manageLessonFilter, setManageLessonFilter] = useState('All');
+
+  // Editing state
+  const [editingPuzzle, setEditingPuzzle] = useState<GrammarPuzzle | null>(null);
+  const [editViSentence, setEditViSentence] = useState('');
+  const [editEnSentence, setEditEnSentence] = useState('');
+  const [editPuzzleLesson, setEditPuzzleLesson] = useState('');
+  const [isEditingModalOpen, setIsEditingModalOpen] = useState(false);
+
+  // Add state
+  const [isAddingPuzzle, setIsAddingPuzzle] = useState(false);
+  const [newViSentence, setNewViSentence] = useState('');
+  const [newEnSentence, setNewEnSentence] = useState('');
+  const [newPuzzleLesson, setNewPuzzleLesson] = useState('');
+
+  const handleSavePuzzle = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editingPuzzle || !onUpdatePuzzles) return;
+
+    const updated = puzzles.map(p => {
+      if (p.id === editingPuzzle.id) {
+        return {
+          ...p,
+          viSentence: editViSentence,
+          enSentence: editEnSentence,
+          lesson: editPuzzleLesson || 'Bài tập chung'
+        };
+      }
+      return p;
+    });
+
+    onUpdatePuzzles(updated);
+    setIsEditingModalOpen(false);
+    setEditingPuzzle(null);
+
+    // If currently active puzzle was edited, refresh its scrambled words
+    if (currentPuzzle && currentPuzzle.id === editingPuzzle.id) {
+      const updatedItem = updated.find(p => p.id === editingPuzzle.id);
+      if (updatedItem) {
+        initPuzzle(updatedItem);
+      }
+    }
+  };
+
+  const handleAddPuzzle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newViSentence || !newEnSentence || !onUpdatePuzzles) return;
+
+    const newPuzzle: GrammarPuzzle = {
+      id: `custom-g-${Date.now()}`,
+      viSentence: newViSentence,
+      enSentence: newEnSentence,
+      lesson: newPuzzleLesson || 'Bài tập chung'
+    };
+
+    const updated = [...puzzles, newPuzzle];
+    onUpdatePuzzles(updated);
+    setIsAddingPuzzle(false);
+    setNewViSentence('');
+    setNewEnSentence('');
+    setNewPuzzleLesson('');
+
+    // Select this lesson if it is new
+    if (newPuzzleLesson && !availableLessons.includes(newPuzzleLesson)) {
+      setSelectedLesson(newPuzzleLesson);
+    }
+  };
+
+  const handleDeletePuzzle = (id: string) => {
+    if (!onUpdatePuzzles) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa câu này không?")) return;
+
+    const updated = puzzles.filter(p => p.id !== id);
+    onUpdatePuzzles(updated);
+
+    // If the active puzzle was deleted, select another one or clear it
+    if (currentPuzzle && currentPuzzle.id === id) {
+      if (updated.length > 0) {
+        const lessonPuzzles = updated.filter(p => p.lesson === selectedLesson);
+        if (lessonPuzzles.length > 0) {
+          initPuzzle(lessonPuzzles[0]);
+        } else {
+          initPuzzle(updated[0]);
+        }
+      } else {
+        setCurrentPuzzle(null);
+      }
+    }
+  };
 
   // Extract available lessons/levels
   useEffect(() => {
@@ -308,15 +405,61 @@ export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) 
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* LEFT COLUMN: Lesson Selector & Scores */}
-      <div className="space-y-6">
-        {/* Lesson List */}
-        <div className="bg-white rounded-2xl border-2 border-yellow-400/60 p-5 shadow-sm">
-          <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-1.5">
-            <Award className="w-4 h-4 text-orange-500" />
-            Chọn Bài học & Trình độ
-          </h3>
+    <div className="space-y-6">
+      {/* Header Tab Selector */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {/* Mode switch button */}
+          <div className="bg-slate-100 p-1 rounded-xl flex items-center space-x-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('practice')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
+                viewMode === 'practice' 
+                  ? 'bg-orange-500 text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Luyện tập ngữ pháp
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('manage')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
+                viewMode === 'manage' 
+                  ? 'bg-orange-500 text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Quản lý câu hỏi ({puzzles.length})
+            </button>
+          </div>
+        </div>
+
+        {viewMode === 'manage' && (
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setIsAddingPuzzle(true)}
+              className="w-full md:w-auto px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/10 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm câu mới
+            </button>
+          </div>
+        )}
+      </div>
+
+      {viewMode === 'practice' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* LEFT COLUMN: Lesson Selector & Scores */}
+          <div className="space-y-6">
+            {/* Lesson List */}
+            <div className="bg-white rounded-2xl border-2 border-yellow-400/60 p-5 shadow-sm">
+              <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-orange-500" />
+                Chọn Bài học & Trình độ
+              </h3>
           
           <div className="space-y-2">
             {availableLessons.length === 0 ? (
@@ -392,13 +535,30 @@ export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) 
                 </span>
                 <h4 className="text-xs text-slate-500 font-medium">Sắp xếp các khối từ sau để tạo thành câu hoàn chỉnh phù hợp với nghĩa tiếng Anh:</h4>
               </div>
-              <button 
-                onClick={handleNextPuzzle}
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                title="Bỏ qua câu này"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingPuzzle(currentPuzzle);
+                    setEditViSentence(currentPuzzle.viSentence);
+                    setEditEnSentence(currentPuzzle.enSentence);
+                    setEditPuzzleLesson(currentPuzzle.lesson);
+                    setIsEditingModalOpen(true);
+                  }}
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                  title="Sửa câu này"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleNextPuzzle}
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                  title="Bỏ qua câu này"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Target English Phrase */}
@@ -570,6 +730,7 @@ export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) 
             {/* Interaction Row (Submit / Reset / Next) */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
               <button
+                type="button"
                 onClick={resetActive}
                 className="flex items-center space-x-1 px-4 py-2 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-xl text-xs font-semibold cursor-pointer active:scale-95"
               >
@@ -580,6 +741,7 @@ export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) 
               <div className="flex items-center space-x-2 w-full sm:w-auto">
                 {!checked ? (
                   <button
+                    type="button"
                     onClick={checkAnswer}
                     disabled={selectedWords.length === 0}
                     className={`w-full sm:w-auto px-6 py-3 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer ${
@@ -592,6 +754,7 @@ export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) 
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={handleNextPuzzle}
                     className="w-full sm:w-auto flex items-center justify-center space-x-1.5 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/15 cursor-pointer"
                   >
@@ -609,6 +772,284 @@ export default function GrammarModule({ puzzles, appLang }: GrammarModuleProps) 
           </div>
         )}
       </div>
+    </div>
+      ) : (
+        /* MANAGE SENTENCES VIEW */
+        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+          {/* Filters Bar */}
+          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 items-center justify-between bg-slate-50/50">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                value={manageSearchQuery}
+                onChange={(e) => setManageSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm câu..."
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none text-xs text-slate-800 transition-all font-semibold"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap">Lọc bài học:</span>
+              <select
+                value={manageLessonFilter}
+                onChange={(e) => setManageLessonFilter(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-orange-500 outline-none text-xs font-semibold text-slate-700 cursor-pointer"
+              >
+                <option value="All">Tất cả bài học</option>
+                {availableLessons.map(lesson => (
+                  <option key={lesson} value={lesson}>{lesson}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Sentences Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <th className="py-3 px-4">Bài học</th>
+                  <th className="py-3 px-4">Câu tiếng Anh</th>
+                  <th className="py-3 px-4">Câu tiếng Việt</th>
+                  <th className="py-3 px-4 text-center">Chức năng</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-medium text-left">
+                {puzzles
+                  .filter(p => {
+                    const matchesSearch = p.enSentence.toLowerCase().includes(manageSearchQuery.toLowerCase()) || 
+                                          p.viSentence.toLowerCase().includes(manageSearchQuery.toLowerCase());
+                    const matchesFilter = manageLessonFilter === 'All' || p.lesson === manageLessonFilter;
+                    return matchesSearch && matchesFilter;
+                  })
+                  .map(p => (
+                    <tr key={p.id} className="hover:bg-slate-50/55 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-500">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] uppercase font-black tracking-wider text-slate-600">
+                          {p.lesson}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{p.enSentence}</td>
+                      <td className="py-3.5 px-4 text-slate-600 font-semibold">{p.viSentence}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex justify-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingPuzzle(p);
+                              setEditViSentence(p.viSentence);
+                              setEditEnSentence(p.enSentence);
+                              setEditPuzzleLesson(p.lesson);
+                              setIsEditingModalOpen(true);
+                            }}
+                            className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                            title="Sửa câu này"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePuzzle(p.id)}
+                            className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                            title="Xóa câu này"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                {puzzles.filter(p => {
+                  const matchesSearch = p.enSentence.toLowerCase().includes(manageSearchQuery.toLowerCase()) || 
+                                        p.viSentence.toLowerCase().includes(manageSearchQuery.toLowerCase());
+                  const matchesFilter = manageLessonFilter === 'All' || p.lesson === manageLessonFilter;
+                  return matchesSearch && matchesFilter;
+                }).length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-400 italic">
+                      Không tìm thấy câu nào phù hợp với bộ lọc.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Puzzle Modal */}
+      <AnimatePresence>
+        {isEditingModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border-2 border-yellow-400 p-6 md:p-8 w-full max-w-lg shadow-xl space-y-6"
+            >
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Edit2 className="w-5 h-5 text-orange-500" />
+                  Sửa Câu Ngữ Pháp
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSavePuzzle} className="space-y-4 text-left">
+                {/* Lesson */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bài học / Trình độ</label>
+                  <input
+                    type="text"
+                    value={editPuzzleLesson}
+                    onChange={(e) => setEditPuzzleLesson(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: A1: Giao tiếp cơ bản"
+                    required
+                  />
+                </div>
+
+                {/* English sentence */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Câu Tiếng Anh (Nguồn)</label>
+                  <input
+                    type="text"
+                    value={editEnSentence}
+                    onChange={(e) => setEditEnSentence(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Hello, how are you?"
+                    required
+                  />
+                </div>
+
+                {/* Vietnamese sentence */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Câu Tiếng Việt (Đáp án ghép câu)</label>
+                  <input
+                    type="text"
+                    value={editViSentence}
+                    onChange={(e) => setEditViSentence(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Xin chào, bạn khỏe không?"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Lưu ý: Các từ sẽ được tách tự động dựa trên khoảng trắng để người học lắp ghép câu.</p>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-slate-100 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingModalOpen(false)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/10 transition-all cursor-pointer"
+                  >
+                    Lưu thay đổi
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Puzzle Modal */}
+      <AnimatePresence>
+        {isAddingPuzzle && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border-2 border-yellow-400 p-6 md:p-8 w-full max-w-lg shadow-xl space-y-6"
+            >
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-orange-500" />
+                  Thêm Câu Ngữ Pháp Mới
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingPuzzle(false)}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddPuzzle} className="space-y-4 text-left">
+                {/* Lesson */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bài học / Trình độ</label>
+                  <input
+                    type="text"
+                    value={newPuzzleLesson}
+                    onChange={(e) => setNewPuzzleLesson(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: A1: Giao tiếp cơ bản"
+                    required
+                  />
+                </div>
+
+                {/* English sentence */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Câu Tiếng Anh (Nguồn)</label>
+                  <input
+                    type="text"
+                    value={newEnSentence}
+                    onChange={(e) => setNewEnSentence(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Hello, how are you?"
+                    required
+                  />
+                </div>
+
+                {/* Vietnamese sentence */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Câu Tiếng Việt (Đáp án ghép câu)</label>
+                  <input
+                    type="text"
+                    value={newViSentence}
+                    onChange={(e) => setNewViSentence(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Xin chào, bạn khỏe không?"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Lưu ý: Các từ sẽ được tách tự động dựa trên khoảng trắng để người học lắp ghép câu.</p>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-slate-100 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingPuzzle(false)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/10 transition-all cursor-pointer"
+                  >
+                    Thêm câu mới
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

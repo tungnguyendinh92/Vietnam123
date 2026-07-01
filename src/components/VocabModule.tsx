@@ -73,6 +73,7 @@ export default function VocabModule({
   const [editTopic, setEditTopic] = useState('');
   const [editExample, setEditExample] = useState('');
   const [editExampleEn, setEditExampleEn] = useState('');
+  const [isEditingFlashcard, setIsEditingFlashcard] = useState(false);
 
   // Add new word state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1119,20 +1120,34 @@ function doGet(e) {
                     Topic: {currentItem.topic}
                   </span>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleMemorized(currentItem.id);
-                    }}
-                    className={`p-1.5 rounded-full transition-all duration-200 cursor-pointer ${
-                      currentItem.memorized
-                        ? 'text-yellow-300'
-                        : 'text-white/40 hover:text-white/80'
-                    }`}
-                    title={currentItem.memorized ? 'Đã thuộc từ này' : 'Đánh dấu đã thuộc'}
-                  >
-                    <CheckCircle2 className="w-5 h-5 fill-current" />
-                  </button>
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit(currentItem);
+                        setIsEditingFlashcard(true);
+                      }}
+                      className="p-1.5 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200 cursor-pointer"
+                      title="Sửa từ vựng này"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleMemorized(currentItem.id);
+                      }}
+                      className={`p-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                        currentItem.memorized
+                          ? 'text-yellow-300'
+                          : 'text-white/40 hover:text-white/80'
+                      }`}
+                      title={currentItem.memorized ? 'Đã thuộc từ này' : 'Đánh dấu đã thuộc'}
+                    >
+                      <CheckCircle2 className="w-5 h-5 fill-current" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Central Term and audio trigger */}
@@ -1378,6 +1393,118 @@ function doGet(e) {
           </div>
         </div>
       )}
+
+      {/* Edit Flashcard Modal Overlay */}
+      <AnimatePresence>
+        {isEditingFlashcard && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl border-2 border-yellow-400 p-6 md:p-8 w-full max-w-lg shadow-xl space-y-6"
+            >
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Edit2 className="w-5 h-5 text-orange-500" />
+                  Sửa Thẻ Từ Vựng
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingFlashcard(false)}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-left">
+                {/* Vietnamese */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Từ vựng (Tiếng Việt)</label>
+                  <input
+                    type="text"
+                    value={editVi}
+                    onChange={(e) => setEditVi(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Xin chào"
+                    required
+                  />
+                </div>
+
+                {/* English */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Nghĩa tiếng Anh</label>
+                  <input
+                    type="text"
+                    value={editEn}
+                    onChange={(e) => setEditEn(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Hello"
+                    required
+                  />
+                </div>
+
+                {/* Topic */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Chủ đề (Topic)</label>
+                  <input
+                    type="text"
+                    value={editTopic}
+                    onChange={(e) => setEditTopic(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Chào hỏi"
+                  />
+                </div>
+
+                {/* Reference Example (Vietnamese) */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ví dụ tham khảo (Tiếng Việt)</label>
+                  <input
+                    type="text"
+                    value={editExample}
+                    onChange={(e) => setEditExample(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Xin chào bạn!"
+                  />
+                </div>
+
+                {/* Reference Example (English Translation) */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Dịch ví dụ (Tiếng Anh)</label>
+                  <input
+                    type="text"
+                    value={editExampleEn}
+                    onChange={(e) => setEditExampleEn(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 outline-none text-xs font-semibold text-slate-800 transition-all"
+                    placeholder="Ví dụ: Hello friend!"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-slate-100 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingFlashcard(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveEdit(editingId!);
+                    setIsEditingFlashcard(false);
+                  }}
+                  className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/10 transition-all cursor-pointer"
+                >
+                  Lưu thay đổi
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

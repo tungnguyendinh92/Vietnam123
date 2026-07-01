@@ -651,6 +651,7 @@ export default function App() {
               {activeTab === 'grammar' && (
                 <GrammarModule 
                   puzzles={puzzles}
+                  onUpdatePuzzles={handleUpdatePuzzles}
                   appLang={appLang}
                 />
               )}
