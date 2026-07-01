@@ -138,13 +138,24 @@ export default function App() {
     }
 
     // 5. Configs
-    const cachedUrl = localStorage.getItem('vietlearn_sheet_url') || 'https://docs.google.com/spreadsheets/d/1iUyG9kxnwH3L5wqoS9xurfyeZtq4Mjs9v8BGYUN3_Iw/edit?usp=sharing';
+    let cachedUrl = localStorage.getItem('vietlearn_sheet_url');
+    if (!cachedUrl || cachedUrl.includes('1X-hUqF3-K6vYhC83Y7K_W0gY4_1Uq6EaL8_H-P_P8sY') || cachedUrl.trim() === '') {
+      cachedUrl = 'https://docs.google.com/spreadsheets/d/1iUyG9kxnwH3L5wqoS9xurfyeZtq4Mjs9v8BGYUN3_Iw/edit?usp=sharing';
+      localStorage.setItem('vietlearn_sheet_url', cachedUrl);
+    }
     setSheetUrl(cachedUrl);
     setSyncSource('sheet');
+
     setVocabSheetName(localStorage.getItem('vietlearn_vocab_sheet_name') || '1');
     setGrammarSheetName(localStorage.getItem('vietlearn_grammar_sheet_name') || '2');
     setWhiteboardSheetName(localStorage.getItem('vietlearn_whiteboard_sheet_name') || '0');
-    setScriptUrl(localStorage.getItem('vietlearn_script_url') || 'https://script.google.com/macros/s/AKfycbwKHZqOs2Is2S0qS3x6E4dZ6P6dmfIi4YLflhn5Y1y0JnotOhzGQOnSgUwhTYzskEc/exec');
+
+    let cachedScript = localStorage.getItem('vietlearn_script_url');
+    if (!cachedScript || cachedScript.trim() === '' || cachedScript.includes('AKfycbw-some-old-id-if-any')) {
+      cachedScript = 'https://script.google.com/macros/s/AKfycbwKHZqOs2Is2S0qS3x6E4dZ6P6dmfIi4YLflhn5Y1y0JnotOhzGQOnSgUwhTYzskEc/exec';
+      localStorage.setItem('vietlearn_script_url', cachedScript);
+    }
+    setScriptUrl(cachedScript);
   }, []);
 
   // Sync callbacks to state and LocalStorage
