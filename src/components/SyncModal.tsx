@@ -167,8 +167,19 @@ export default function SyncModal({
           })
         ]);
 
-        if (wbRes.status === 404 || vocabRes.status === 404 || grammarRes.status === 404) {
-          console.warn("Express API endpoints not found (HTTP 404). Likely running on a static hosting environment like Vercel. Falling back to direct client-side CSV fetch.");
+        const contentTypeWb = wbRes.headers.get('content-type') || '';
+        const contentTypeVocab = vocabRes.headers.get('content-type') || '';
+        const contentTypeGrammar = grammarRes.headers.get('content-type') || '';
+
+        if (
+          wbRes.status === 404 || 
+          vocabRes.status === 404 || 
+          grammarRes.status === 404 ||
+          !contentTypeWb.includes('application/json') ||
+          !contentTypeVocab.includes('application/json') ||
+          !contentTypeGrammar.includes('application/json')
+        ) {
+          console.warn("Express API endpoints not found or not returning JSON. Likely running on a static hosting environment like Vercel. Falling back to direct client-side CSV fetch.");
           useClientFallback = true;
         }
       } catch (err) {

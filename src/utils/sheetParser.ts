@@ -97,10 +97,10 @@ export async function fetchWhiteboardFromSheet(spreadsheetId: string, sheetNameO
   let url = "";
   const trimmed = String(sheetNameOrId).trim();
   if (!trimmed || trimmed === "0") {
-    // Default to the first sheet in the spreadsheet without gid to avoid 404/400 if gid=0 was deleted
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+    // Default to the first sheet in the spreadsheet using gviz to avoid CORS issues
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
   } else if (isGid) {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${trimmed}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&gid=${trimmed}`;
   } else {
     url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(trimmed)}`;
   }
@@ -164,9 +164,9 @@ export async function fetchVocabFromSheet(spreadsheetId: string, sheetNameOrId: 
   let url = "";
   const trimmed = String(sheetNameOrId).trim();
   if (!trimmed || trimmed === "0") {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
   } else if (isGid) {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${trimmed}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&gid=${trimmed}`;
   } else {
     url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(trimmed)}`;
   }
@@ -215,9 +215,9 @@ export async function fetchGrammarFromSheet(spreadsheetId: string, sheetNameOrId
   let url = "";
   const trimmed = String(sheetNameOrId).trim();
   if (!trimmed || trimmed === "0") {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
   } else if (isGid) {
-    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${trimmed}`;
+    url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&gid=${trimmed}`;
   } else {
     url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(trimmed)}`;
   }
@@ -251,4 +251,4 @@ export async function fetchGrammarFromSheet(spreadsheetId: string, sheetNameOrId
 }
 
 // Sample published spreadsheet for demonstration and copying
-export const SAMPLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1X-hUqF3-K6vYhC83Y7K_W0gY4_1Uq6EaL8_H-P_P8sY/edit?usp=sharing";
+export const SAMPLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1iUyG9kxnwH3L5wqoS9xurfyeZtq4Mjs9v8BGYUN3_Iw/edit?usp=sharing";

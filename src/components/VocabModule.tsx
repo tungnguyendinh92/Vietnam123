@@ -281,7 +281,8 @@ function doGet(e) {
               data
             })
           });
-          if (res.status === 404) {
+          const contentType = res.headers.get('content-type') || '';
+          if (res.status === 404 || !contentType.includes('application/json')) {
             useDirectPush = true;
           } else {
             if (!res.ok) {

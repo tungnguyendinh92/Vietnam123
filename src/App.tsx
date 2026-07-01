@@ -43,12 +43,12 @@ export default function App() {
   const [puzzles, setPuzzles] = useState<GrammarPuzzle[]>([]);
   const [whiteboardTabs, setWhiteboardTabs] = useState<WhiteboardTab[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [sheetUrl, setSheetUrl] = useState('');
-  const [syncSource, setSyncSource] = useState<'preset' | 'sheet'>('preset');
+  const [sheetUrl, setSheetUrl] = useState('https://docs.google.com/spreadsheets/d/1iUyG9kxnwH3L5wqoS9xurfyeZtq4Mjs9v8BGYUN3_Iw/edit?usp=sharing');
+  const [syncSource, setSyncSource] = useState<'preset' | 'sheet'>('sheet');
   const [vocabSheetName, setVocabSheetName] = useState('1');
   const [grammarSheetName, setGrammarSheetName] = useState('2');
   const [whiteboardSheetName, setWhiteboardSheetName] = useState('0');
-  const [scriptUrl, setScriptUrl] = useState('');
+  const [scriptUrl, setScriptUrl] = useState('https://script.google.com/macros/s/AKfycbwKHZqOs2Is2S0qS3x6E4dZ6P6dmfIi4YLflhn5Y1y0JnotOhzGQOnSgUwhTYzskEc/exec');
 
   // Load initial data
   useEffect(() => {
@@ -138,13 +138,13 @@ export default function App() {
     }
 
     // 5. Configs
-    const cachedUrl = localStorage.getItem('vietlearn_sheet_url') || '';
+    const cachedUrl = localStorage.getItem('vietlearn_sheet_url') || 'https://docs.google.com/spreadsheets/d/1iUyG9kxnwH3L5wqoS9xurfyeZtq4Mjs9v8BGYUN3_Iw/edit?usp=sharing';
     setSheetUrl(cachedUrl);
-    setSyncSource(cachedUrl ? 'sheet' : 'preset');
+    setSyncSource('sheet');
     setVocabSheetName(localStorage.getItem('vietlearn_vocab_sheet_name') || '1');
     setGrammarSheetName(localStorage.getItem('vietlearn_grammar_sheet_name') || '2');
     setWhiteboardSheetName(localStorage.getItem('vietlearn_whiteboard_sheet_name') || '0');
-    setScriptUrl(localStorage.getItem('vietlearn_script_url') || '');
+    setScriptUrl(localStorage.getItem('vietlearn_script_url') || 'https://script.google.com/macros/s/AKfycbwKHZqOs2Is2S0qS3x6E4dZ6P6dmfIi4YLflhn5Y1y0JnotOhzGQOnSgUwhTYzskEc/exec');
   }, []);
 
   // Sync callbacks to state and LocalStorage
@@ -261,8 +261,19 @@ export default function App() {
           })
         ]);
 
-        if (wbRes.status === 404 || vocabRes.status === 404 || grammarRes.status === 404) {
-          console.warn("Express API endpoints not found (HTTP 404). Falling back to direct client-side CSV fetch.");
+        const contentTypeWb = wbRes.headers.get('content-type') || '';
+        const contentTypeVocab = vocabRes.headers.get('content-type') || '';
+        const contentTypeGrammar = grammarRes.headers.get('content-type') || '';
+
+        if (
+          wbRes.status === 404 || 
+          vocabRes.status === 404 || 
+          grammarRes.status === 404 ||
+          !contentTypeWb.includes('application/json') ||
+          !contentTypeVocab.includes('application/json') ||
+          !contentTypeGrammar.includes('application/json')
+        ) {
+          console.warn("Express API endpoints not found or not returning JSON (HTTP 404 or HTML fallback). Falling back to direct client-side CSV fetch.");
           useClientFallback = true;
         } else {
           if (!wbRes.ok) {
@@ -453,7 +464,8 @@ export default function App() {
               data
             })
           });
-          if (res.status === 404) {
+          const contentType = res.headers.get('content-type') || '';
+          if (res.status === 404 || !contentType.includes('application/json')) {
             useDirectPush = true;
           } else {
             if (!res.ok) {
