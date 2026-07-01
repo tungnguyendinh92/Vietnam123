@@ -75,113 +75,140 @@ export default function SyncModal({
       let vocabItems: VocabItem[] = [];
       let grammarItems: GrammarPuzzle[] = [];
 
-      console.log("SyncModal: Fetching whiteboard, vocabulary, and grammar data via server API...");
-      
-      const [wbRes, vocabRes, grammarRes] = await Promise.all([
-        fetch('/api/fetch-from-sheet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scriptUrl, spreadsheetId: id, sheetName: whiteboardSheetName })
-        }),
-        fetch('/api/fetch-from-sheet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scriptUrl, spreadsheetId: id, sheetName: vocabSheetName })
-        }),
-        fetch('/api/fetch-from-sheet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scriptUrl, spreadsheetId: id, sheetName: grammarSheetName })
-        })
-      ]);
+      let useClientFallback = false;
+      let wbRes, vocabRes, grammarRes;
 
-      if (!wbRes.ok) {
-        const errData = await wbRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Lỗi tải dữ liệu Bảng Trắng (${wbRes.status})`);
-      }
-      if (!vocabRes.ok) {
-        const errData = await vocabRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Lỗi tải dữ liệu Từ vựng (${vocabRes.status})`);
-      }
-      if (!grammarRes.ok) {
-        const errData = await grammarRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Lỗi tải dữ liệu Ghép câu (${grammarRes.status})`);
-      }
+      console.log("SyncModal: Fetching whiteboard, vocabulary, and grammar data...");
 
-      const wbResult = await wbRes.json();
-      const vocabResult = await vocabRes.json();
-      const grammarResult = await grammarRes.json();
+      try {
+        [wbRes, vocabRes, grammarRes] = await Promise.all([
+          fetch('/api/fetch-from-sheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scriptUrl, spreadsheetId: id, sheetName: whiteboardSheetName })
+          }),
+          fetch('/api/fetch-from-sheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scriptUrl, spreadsheetId: id, sheetName: vocabSheetName })
+          }),
+          fetch('/api/fetch-from-sheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scriptUrl, spreadsheetId: id, sheetName: grammarSheetName })
+          })
+        ]);
 
-      if (wbResult.status !== 'success' || !Array.isArray(wbResult.data)) {
-        throw new Error(wbResult.error || "Dữ liệu Bảng Trắng không đúng định dạng JSON.");
-      }
-      if (vocabResult.status !== 'success' || !Array.isArray(vocabResult.data)) {
-        throw new Error(vocabResult.error || "Dữ liệu Từ Vựng không đúng định dạng JSON.");
-      }
-      if (grammarResult.status !== 'success' || !Array.isArray(grammarResult.data)) {
-        throw new Error(grammarResult.error || "Dữ liệu Ghép Câu không đúng định dạng JSON.");
-      }
-
-      // Parse Whiteboard rows
-      const wbRows = wbResult.data;
-      const tabMap: { [title: string]: WhiteboardLine[] } = {};
-      for (let i = 1; i < wbRows.length; i++) {
-        const row = wbRows[i];
-        if (row.length < 2 || !row[0] || !row[1]) continue;
-
-        const tabTitle = String(row[0]).trim();
-        const viText = String(row[1]).trim();
-        const fullEnText = row[2] ? String(row[2]).trim() : '';
-        const wordsStr = row[3] ? String(row[3]).trim() : '';
-        const grammar = row[4] ? String(row[4]).trim() : undefined;
-
-        const line: WhiteboardLine = {
-          id: `sheet-wb-l-${i}`,
-          viText,
-          fullEnText,
-          words: parseWordsString(wordsStr),
-          grammar
-        };
-
-        if (!tabMap[tabTitle]) {
-          tabMap[tabTitle] = [];
+        if (wbRes.status === 404 || vocabRes.status === 404 || grammarRes.status === 404) {
+          console.warn("Express API endpoints not found (HTTP 404). Likely running on a static hosting environment like Vercel. Falling back to direct client-side CSV fetch.");
+          useClientFallback = true;
         }
-        tabMap[tabTitle].push(line);
+      } catch (err) {
+        console.warn("Network error reaching Express server, falling back to direct client-side CSV fetch:", err);
+        useClientFallback = true;
       }
 
-      whiteboardItems = Object.keys(tabMap).map((title, idx) => ({
-        id: `sheet-wb-tab-${idx}`,
-        title,
-        lines: tabMap[title]
-      }));
+      if (useClientFallback) {
+        // Direct browser CSV fetch bypasses Express server
+        console.log("Syncing directly from Google Sheets CSV export on the client...");
+        const [wbData, vocabData, grammarData] = await Promise.all([
+          fetchWhiteboardFromSheet(id, whiteboardSheetName),
+          fetchVocabFromSheet(id, vocabSheetName),
+          fetchGrammarFromSheet(id, grammarSheetName)
+        ]);
 
-      // Parse Vocab rows
-      const vocabRows = vocabResult.data;
-      for (let i = 1; i < vocabRows.length; i++) {
-        const row = vocabRows[i];
-        if (row.length < 2 || !row[0] || !row[1]) continue;
-        vocabItems.push({
-          id: `sheet-v-${i}`,
-          vi: String(row[0]),
-          en: String(row[1]),
-          topic: String(row[2] || 'Chung'),
-          example: row[3] ? String(row[3]) : undefined,
-          exampleEn: row[4] ? String(row[4]) : undefined,
-          memorized: row[5] ? (String(row[5]).trim().toUpperCase() === 'TRUE' || String(row[5]).trim() === '1' || String(row[5]).trim() === 'Đã thuộc') : false
-        });
-      }
+        whiteboardItems = wbData;
+        vocabItems = vocabData;
+        grammarItems = grammarData;
+      } else {
+        if (!wbRes!.ok) {
+          const errData = await wbRes!.json().catch(() => ({}));
+          throw new Error(errData.error || `Lỗi tải dữ liệu Bảng Trắng (${wbRes!.status})`);
+        }
+        if (!vocabRes!.ok) {
+          const errData = await vocabRes!.json().catch(() => ({}));
+          throw new Error(errData.error || `Lỗi tải dữ liệu Từ vựng (${vocabRes!.status})`);
+        }
+        if (!grammarRes!.ok) {
+          const errData = await grammarRes!.json().catch(() => ({}));
+          throw new Error(errData.error || `Lỗi tải dữ liệu Ghép câu (${grammarRes!.status})`);
+        }
 
-      // Parse Grammar rows
-      const grammarRows = grammarResult.data;
-      for (let i = 1; i < grammarRows.length; i++) {
-        const row = grammarRows[i];
-        if (row.length < 2 || !row[0] || !row[1]) continue;
-        grammarItems.push({
-          id: `sheet-g-${i}`,
-          viSentence: String(row[0]),
-          enSentence: String(row[1]),
-          lesson: String(row[2] || 'Bài tập chung')
-        });
+        const wbResult = await wbRes!.json();
+        const vocabResult = await vocabRes!.json();
+        const grammarResult = await grammarRes!.json();
+
+        if (wbResult.status !== 'success' || !Array.isArray(wbResult.data)) {
+          throw new Error(wbResult.error || "Dữ liệu Bảng Trắng không đúng định dạng JSON.");
+        }
+        if (vocabResult.status !== 'success' || !Array.isArray(vocabResult.data)) {
+          throw new Error(vocabResult.error || "Dữ liệu Từ Vựng không đúng định dạng JSON.");
+        }
+        if (grammarResult.status !== 'success' || !Array.isArray(grammarResult.data)) {
+          throw new Error(grammarResult.error || "Dữ liệu Ghép Câu không đúng định dạng JSON.");
+        }
+
+        // Parse Whiteboard rows
+        const wbRows = wbResult.data;
+        const tabMap: { [title: string]: WhiteboardLine[] } = {};
+        for (let i = 1; i < wbRows.length; i++) {
+          const row = wbRows[i];
+          if (row.length < 2 || !row[0] || !row[1]) continue;
+
+          const tabTitle = String(row[0]).trim();
+          const viText = String(row[1]).trim();
+          const fullEnText = row[2] ? String(row[2]).trim() : '';
+          const wordsStr = row[3] ? String(row[3]).trim() : '';
+          const grammar = row[4] ? String(row[4]).trim() : undefined;
+
+          const line: WhiteboardLine = {
+            id: `sheet-wb-l-${i}`,
+            viText,
+            fullEnText,
+            words: parseWordsString(wordsStr),
+            grammar
+          };
+
+          if (!tabMap[tabTitle]) {
+            tabMap[tabTitle] = [];
+          }
+          tabMap[tabTitle].push(line);
+        }
+
+        whiteboardItems = Object.keys(tabMap).map((title, idx) => ({
+          id: `sheet-wb-tab-${idx}`,
+          title,
+          lines: tabMap[title]
+        }));
+
+        // Parse Vocab rows
+        const vocabRows = vocabResult.data;
+        for (let i = 1; i < vocabRows.length; i++) {
+          const row = vocabRows[i];
+          if (row.length < 2 || !row[0] || !row[1]) continue;
+          vocabItems.push({
+            id: `sheet-v-${i}`,
+            vi: String(row[0]),
+            en: String(row[1]),
+            topic: String(row[2] || 'Chung'),
+            example: row[3] ? String(row[3]) : undefined,
+            exampleEn: row[4] ? String(row[4]) : undefined,
+            memorized: row[5] ? (String(row[5]).trim().toUpperCase() === 'TRUE' || String(row[5]).trim() === '1' || String(row[5]).trim() === 'Đã thuộc') : false
+          });
+        }
+
+        // Parse Grammar rows
+        const grammarRows = grammarResult.data;
+        for (let i = 1; i < grammarRows.length; i++) {
+          const row = grammarRows[i];
+          if (row.length < 2 || !row[0] || !row[1]) continue;
+          grammarItems.push({
+            id: `sheet-g-${i}`,
+            viSentence: String(row[0]),
+            enSentence: String(row[1]),
+            lesson: String(row[2] || 'Bài tập chung')
+          });
+        }
       }
 
       // Make sure we actually retrieved some items so we don't wipe data accidentally

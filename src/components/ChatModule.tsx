@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { Send, Sparkles, Loader2, MessageSquare, Volume2, Globe, Bot, User, HelpCircle, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { localWhiteboardTranslate, localChatResponse } from '../utils/localTranslator';
 
 interface ChatModuleProps {
   messages: ChatMessage[];
@@ -122,10 +123,12 @@ export default function ChatModule({ messages, onAddMessage, onUpdateMessage, on
           const transData = await transRes.json();
           userTranslation = transData.fullTranslation;
         } else {
-          userTranslation = isInputVi ? 'Translating to English...' : 'Dịch sang Tiếng Việt...';
+          console.warn("Translation server returned non-OK status. Falling back to local dictionary translation.");
+          userTranslation = localWhiteboardTranslate(userRawText).fullTranslation;
         }
       } catch (e) {
-        userTranslation = isInputVi ? 'Translating to English...' : 'Dịch sang Tiếng Việt...';
+        console.warn("Translation server connection error. Falling back to local dictionary translation:", e);
+        userTranslation = localWhiteboardTranslate(userRawText).fullTranslation;
       }
 
       // Update the user message translation reactively
@@ -133,31 +136,50 @@ export default function ChatModule({ messages, onAddMessage, onUpdateMessage, on
 
       // 2. Query server API /api/chat with full history
       const history = [...messages, { ...userMsg, translation: userTranslation }];
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history })
-      });
+      let assistantContent = '';
+      let assistantTranslation = '';
 
-      if (!response.ok) throw new Error("Không thể kết nối với máy chủ AI.");
-      const data = await response.json();
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          assistantContent = data.content;
+          assistantTranslation = data.translation;
+        } else {
+          console.warn(`Chat server returned status ${response.status}. Using offline chat fallback.`);
+          const localRes = localChatResponse(userRawText);
+          assistantContent = localRes.content;
+          assistantTranslation = localRes.translation;
+        }
+      } catch (err) {
+        console.warn("Network error during chat, falling back to local chat engine:", err);
+        const localRes = localChatResponse(userRawText);
+        assistantContent = localRes.content;
+        assistantTranslation = localRes.translation;
+      }
 
       // 3. Create the assistant's bilingual message
       const assistantMsg: ChatMessage = {
         id: `chat-a-${Date.now()}`,
         role: 'assistant',
-        content: data.content,
-        translation: data.translation
+        content: assistantContent,
+        translation: assistantTranslation
       };
 
       onAddMessage(assistantMsg);
     } catch (err: any) {
       console.error(err);
+      const localRes = localChatResponse(userRawText);
       const errMsg: ChatMessage = {
         id: `chat-err-${Date.now()}`,
         role: 'assistant',
-        content: "Đã xảy ra lỗi khi trao đổi với trợ lý AI. Vui lòng đảm bảo bạn đã điền đầy đủ và chính xác mã GEMINI_API_KEY trong cấu hình Secrets panel.",
-        translation: "An error occurred with the AI companion. Please ensure you have configured your GEMINI_API_KEY inside the Secrets panel."
+        content: localRes.content,
+        translation: localRes.translation
       };
       onAddMessage(errMsg);
     } finally {

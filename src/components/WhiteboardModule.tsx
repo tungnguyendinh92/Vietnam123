@@ -11,6 +11,7 @@ import {
   Minimize2, Maximize2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { localWhiteboardTranslate, localExplainGrammar } from '../utils/localTranslator';
 
 interface WhiteboardModuleProps {
   tabs: WhiteboardTab[];
@@ -70,14 +71,24 @@ export default function WhiteboardModule({ tabs, onUpdateTabs }: WhiteboardModul
 
     setLoadingLines(prev => ({ ...prev, [lineId]: true }));
     try {
-      const response = await fetch('/api/translate-whiteboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: viText })
-      });
+      let data;
+      try {
+        const response = await fetch('/api/translate-whiteboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: viText })
+        });
 
-      if (!response.ok) throw new Error("Biên dịch dòng bảng trắng thất bại");
-      const data = await response.json();
+        if (response.ok) {
+          data = await response.json();
+        } else {
+          console.warn(`Translation server returned status ${response.status}. Using offline translation fallback.`);
+          data = localWhiteboardTranslate(viText);
+        }
+      } catch (e) {
+        console.warn("Network error during translation. Using offline translation fallback:", e);
+        data = localWhiteboardTranslate(viText);
+      }
  
       // Update that line inside active tab
       const updatedTabs = tabs.map(tab => {
@@ -107,7 +118,8 @@ export default function WhiteboardModule({ tabs, onUpdateTabs }: WhiteboardModul
       onUpdateTabs(updatedTabs);
     } catch (err: any) {
       console.error(err);
-      // Update the line in active tab with friendly error instructions
+      // Fallback is handled above, but just in case of an absolute catastrophic failure
+      const localResult = localWhiteboardTranslate(viText);
       const updatedTabs = tabs.map(tab => {
         if (tab.id === activeTabId) {
           return {
@@ -116,11 +128,13 @@ export default function WhiteboardModule({ tabs, onUpdateTabs }: WhiteboardModul
               if (line.id === lineId) {
                 return {
                   ...line,
-                  fullEnText: "Lỗi AI: Vui lòng kiểm tra phím GEMINI_API_KEY trong cấu hình Secrets.",
-                  words: [
-                    { id: `err-${Date.now()}-1`, vi: "Lỗi kết nối", en: "AI Connection Error" },
-                    { id: `err-${Date.now()}-2`, vi: "Cấu hình", en: "Check API Key Secrets" }
-                  ]
+                  viText: viText,
+                  fullEnText: localResult.fullTranslation,
+                  words: localResult.words.map((w: any, idx: number) => ({
+                    id: `word-${idx}-${Date.now()}`,
+                    vi: w.vi,
+                    en: w.en
+                  }))
                 };
               }
               return line;
@@ -312,13 +326,24 @@ export default function WhiteboardModule({ tabs, onUpdateTabs }: WhiteboardModul
   const handleSuggestGrammar = async (lineId: string, viSentence: string, enSentence: string) => {
     setLoadingLines(prev => ({ ...prev, [lineId]: true }));
     try {
-      const response = await fetch('/api/explain-grammar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ viSentence, enSentence })
-      });
-      if (!response.ok) throw new Error("Gợi ý ngữ pháp thất bại");
-      const data = await response.json();
+      let explanation = "";
+      try {
+        const response = await fetch('/api/explain-grammar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ viSentence, enSentence })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          explanation = data.explanation;
+        } else {
+          console.warn(`Grammar server returned status ${response.status}. Using offline fallback.`);
+          explanation = localExplainGrammar(viSentence, enSentence).explanation;
+        }
+      } catch (e) {
+        console.warn("Network error during grammar explanation. Using offline fallback:", e);
+        explanation = localExplainGrammar(viSentence, enSentence).explanation;
+      }
 
       const updatedTabs = tabs.map(tab => {
         if (tab.id === activeTabId) {
@@ -326,7 +351,7 @@ export default function WhiteboardModule({ tabs, onUpdateTabs }: WhiteboardModul
             ...tab,
             lines: tab.lines.map(line => {
               if (line.id === lineId) {
-                return { ...line, grammar: data.explanation };
+                return { ...line, grammar: explanation };
               }
               return line;
             })
